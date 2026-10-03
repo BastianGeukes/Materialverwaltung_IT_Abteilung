@@ -14,7 +14,7 @@ public class Main {
         if (url == null || url.isBlank()
                 || username == null || username.isBlank()
                 || password == null) {
-            System.err.println("Bitte DB_URL, DB_USERNAME, DB_PASSWORD konfigurieren");
+            System.err.println("Bitte DATABASE_URL, DATABASE_USERNAME, DATABASE_PASSWORD konfigurieren");
             System.exit(1);
         }
 
