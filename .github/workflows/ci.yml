@@ -1,0 +1,31 @@
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    name: Build und Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Projekt herunterladen
+        uses: actions/checkout@v7
+
+      - name: Java 25 einrichten
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+
+      - name: Maven Wrapper ausführbar machen
+        run: chmod +x mvnw
+
+      - name: Projekt bauen und Junit Tests ausführen
+        run: ./mvnw --batch-mode --no-transfer-progress clean package
+
