@@ -1,4 +1,4 @@
-package materialverwaltung.ui;
+package materialverwaltung.exception;
 
 import java.io.Serial;
 

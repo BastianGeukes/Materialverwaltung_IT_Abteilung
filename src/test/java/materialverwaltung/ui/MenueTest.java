@@ -1,6 +1,7 @@
 package materialverwaltung.ui;
 
 import materialverwaltung.exception.DatenzugriffsException;
+import materialverwaltung.exception.EingabeendeException;
 import materialverwaltung.exception.FachlicheException;
 import materialverwaltung.exception.FachlicherFehler;
 import org.junit.jupiter.api.Test;

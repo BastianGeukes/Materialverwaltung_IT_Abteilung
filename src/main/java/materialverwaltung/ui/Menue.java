@@ -1,6 +1,8 @@
 package materialverwaltung.ui;
 
 import materialverwaltung.exception.DatenzugriffsException;
+import materialverwaltung.exception.EingabeAbgebrochenException;
+import materialverwaltung.exception.EingabeendeException;
 import materialverwaltung.exception.FachlicheException;
 
 import java.io.PrintStream;

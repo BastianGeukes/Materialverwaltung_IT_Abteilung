@@ -1,5 +1,8 @@
 package materialverwaltung.ui;
 
+import materialverwaltung.exception.EingabeAbgebrochenException;
+import materialverwaltung.exception.EingabeendeException;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.PrintStream;
