@@ -1,5 +1,7 @@
 package materialverwaltung.ui;
 
+import materialverwaltung.exception.EingabeAbgebrochenException;
+import materialverwaltung.exception.EingabeendeException;
 import org.junit.jupiter.api.Test;
 
 import java.io.BufferedReader;
