@@ -24,13 +24,13 @@ Java 25 und PostgreSQL 17 bilden die technische Grundlage. Anwendungs- und Testd
 Die folgenden Namen bilden die gemeinsame Vorgabe für BOs und SQL. SQL-Bezeichner mit Großbuchstaben werden in Abfragen in doppelte Anführungszeichen gesetzt.
 
 | BO              | Java-Feld       | Java-Typ       | SQL-Spalte      | Bedeutung                                     |
-| --------------- | --------------- | -------------- | --------------- | --------------------------------------------- |
+| --------------- | --------------- |----------------| --------------- | --------------------------------------------- |
 | ArtikelBO       | artikelId       | int            | ArtikelID       | Automatisch erzeugter Primärschlüssel         |
 |                 | bezeichnung     | String         | Bezeichnung     | Pflichtfeld, eindeutig, höchstens 100 Zeichen |
 |                 | bestand         | int            | Bestand         | Gespeicherter Bestand, anfangs 0              |
 | MitarbeiterBO   | mitarbeiterId   | int            | MitarbeiterID   | Automatisch erzeugter Primärschlüssel         |
 |                 | name            | String         | Name            | Pflichtfeld, höchstens 100 Zeichen            |
-|                 | abteilung       | String         | Abteilung       | Optional, höchstens 100 Zeichen               |
+|                 | abteilung       | Abteilung      | Abteilung       | Optional, höchstens 100 Zeichen               |
 | LagerbewegungBO | lagerbewegungId | int            | LagerbewegungID | Automatisch erzeugter Primärschlüssel         |
 |                 | artikelId       | int            | ArtikelID       | Fremdschlüssel auf Artikel                    |
 |                 | mitarbeiterId   | int            | MitarbeiterID   | Fremdschlüssel auf Mitarbeiter                |
@@ -123,14 +123,14 @@ Jede DAO-Methode erhält als **ersten Parameter eine offene&#x20;****`Connection
 
 **MitarbeiterDAO**
 
-| Methode mit weiteren Parametern                                | Rückgabe                  |
-| -------------------------------------------------------------- | ------------------------- |
-| `anlegen(String name, String abteilung)`                       | `MitarbeiterBO`           |
-| `findeNachId(int mitarbeiterId)`                               | `Optional<MitarbeiterBO>` |
-| `findeAlle()`                                                  | `List<MitarbeiterBO>`     |
-| `sucheNachName(String suchbegriff)`                            | `List<MitarbeiterBO>`     |
-| `bearbeiten(int mitarbeiterId, String name, String abteilung)` | `boolean`                 |
-| `loeschen(int mitarbeiterId)`                                  | `boolean`                 |
+| Methode mit weiteren Parametern                                   | Rückgabe                  |
+|-------------------------------------------------------------------| ------------------------- |
+| `anlegen(String name, Abteilung abteilung)`                        | `MitarbeiterBO`           |
+| `findeNachId(int mitarbeiterId)`                                  | `Optional<MitarbeiterBO>` |
+| `findeAlle()`                                                     | `List<MitarbeiterBO>`     |
+| `sucheNachName(String suchbegriff)`                               | `List<MitarbeiterBO>`     |
+| `bearbeiten(int mitarbeiterId, String name, Abteilung abteilung)` | `boolean`                 |
+| `loeschen(int mitarbeiterId)`                                     | `boolean`                 |
 
 **LagerbewegungDAO**
 
@@ -140,6 +140,11 @@ Jede DAO-Methode erhält als **ersten Parameter eine offene&#x20;****`Connection
 | `findeAlle()`                                                                     | `List<LagerbewegungBO>` |
 
 Der Bewegungs-DAO verändert keinen Artikelbestand. Anlageoperationen liefern den gespeicherten Datensatz einschließlich generierter ID und gegebenenfalls Zeitpunkt.
+
+Die bearbeiten Methode in MitarbeiterDAO hat drei Varianten.
+1. Name und Abteilung werden geändert
+2. Nur der Name wird verändert
+3. Nur die Abteilung wird verändert
 
 **6. Service-Schnittstellen**
 
@@ -158,14 +163,19 @@ Services erhalten ihre DAO-Abhängigkeiten und die `ConnectionFactory` über Kon
 
 **MitarbeiterService**
 
-| Methode                                                        | Rückgabe              |
-| -------------------------------------------------------------- | --------------------- |
-| `anlegen(String name, String abteilung)`                       | `MitarbeiterBO`       |
-| `holeNachId(int mitarbeiterId)`                                | `MitarbeiterBO`       |
-| `auflisten()`                                                  | `List<MitarbeiterBO>` |
-| `suchen(String suchbegriff)`                                   | `List<MitarbeiterBO>` |
-| `bearbeiten(int mitarbeiterId, String name, String abteilung)` | `MitarbeiterBO`       |
-| `loeschen(int mitarbeiterId)`                                  | `void`                |
+| Methode                                                           | Rückgabe              |
+|-------------------------------------------------------------------| --------------------- |
+| `anlegen(String name, Abteilung abteilung)`                       | `MitarbeiterBO`       |
+| `holeNachId(int mitarbeiterId)`                                   | `MitarbeiterBO`       |
+| `auflisten()`                                                     | `List<MitarbeiterBO>` |
+| `suchen(String suchbegriff)`                                      | `List<MitarbeiterBO>` |
+| `bearbeiten(int mitarbeiterId, String name, Abteilung abteilung)` | `MitarbeiterBO`       |
+| `loeschen(int mitarbeiterId)`                                     | `void`                |
+
+Die bearbeiten Methode hat drei Varianten.
+1. Name und Abteilung werden geändert
+2. Nur der Name wird verändert
+3. Nur die Abteilung wird verändert
 
 **MaterialService**
 
