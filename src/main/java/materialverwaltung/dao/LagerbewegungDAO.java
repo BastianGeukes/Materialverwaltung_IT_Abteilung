@@ -10,11 +10,12 @@ public interface LagerbewegungDAO {
 
     /**
      * Legt eine Lagerbewgung an zur Logistischen Nachverfolgung von Bestandsänderungen
-     * @param connection DB Verbindung
-     * @param artikelId Artikel ID
+     *
+     * @param connection    DB Verbindung
+     * @param artikelId     Artikel ID
      * @param mitarbeiterId Mitarbeiter ID
-     * @param bewegungsart Bewegungsart
-     * @param menge Menge
+     * @param bewegungsart  Bewegungsart
+     * @param menge         Menge
      * @return LagerbewegungBO
      */
     public LagerbewegungBO anlegen(
@@ -22,6 +23,7 @@ public interface LagerbewegungDAO {
 
     /**
      * Findet alle Lagerbewegungen
+     *
      * @param connection DB Verbindung
      * @return List von LagerbewegungBOs
      */

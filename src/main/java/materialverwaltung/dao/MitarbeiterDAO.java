@@ -13,8 +13,8 @@ public interface MitarbeiterDAO {
      * Legt einen Mitarbeiter an
      *
      * @param connection DB Verbindung
-     * @param name      Name
-     * @param abteilung Abteilung
+     * @param name       Name
+     * @param abteilung  Abteilung
      * @return MitarbeiterBO des angelegten Mitarbeiters
      */
     public MitarbeiterBO anlegen(
@@ -23,7 +23,7 @@ public interface MitarbeiterDAO {
     /**
      * Sucht Mitarbeiter mithilfe einer Id
      *
-     * @param connection DB Verbindung
+     * @param connection    DB Verbindung
      * @param mitarbeiterId Id
      * @return Optional (MitarbeiterBO falls gefunden)
      */
@@ -43,54 +43,54 @@ public interface MitarbeiterDAO {
      * Suche für Mitarbeiter mithilfe eines Suchbregriffs
      * Suche verwendet Teilbegriffe ohne Beachtung der Groß-/Kleinschreibung <br>
      *
-     * @param connection DB Verbindung
+     * @param connection  DB Verbindung
      * @param suchbegriff Suchbegriff
      * @return List von MitarbeiterBOs
      */
     public List<MitarbeiterBO> sucheNachName(
-            Connection connection ,String suchbegriff);
+            Connection connection, String suchbegriff);
 
     /**
      * Ändert den Namen und die Abteilung eines Mitarbeiters
      *
-     * @param connection DB Verbindung
+     * @param connection    DB Verbindung
      * @param mitarbeiterId ID
      * @param name          Name
      * @param abteilung     Abteilung
      * @return boolean
      */
     public boolean bearbeiten(
-            Connection connection ,int mitarbeiterId, String name, Abteilung abteilung);
+            Connection connection, int mitarbeiterId, String name, Abteilung abteilung);
 
     /**
      * Ändert die Abteilung eines Mitarbeiters
      *
-     * @param connection DB Verbindung
+     * @param connection    DB Verbindung
      * @param mitarbeiterId ID
      * @param abteilung     Abteilung
      * @return boolean
      */
     public boolean bearbeiten(
-            Connection connection ,int mitarbeiterId, Abteilung abteilung);
+            Connection connection, int mitarbeiterId, Abteilung abteilung);
 
     /**
      * Ändert den Namen eines Mitarbeiters
      *
-     * @param connection DB Verbindung
+     * @param connection    DB Verbindung
      * @param mitarbeiterId ID
      * @param name          Name
      * @return boolean
      */
     public boolean bearbeiten(
-            Connection connection ,int mitarbeiterId, String name);
+            Connection connection, int mitarbeiterId, String name);
 
     /**
      * Löscht einen Mitarbeiter, falls keine Lagerbewegung vorhanden ist
      *
-     * @param connection DB Verbindung
+     * @param connection    DB Verbindung
      * @param mitarbeiterId ID
      * @return boolean
      */
     public boolean loeschen(
-            Connection connection ,int mitarbeiterId);
+            Connection connection, int mitarbeiterId);
 }

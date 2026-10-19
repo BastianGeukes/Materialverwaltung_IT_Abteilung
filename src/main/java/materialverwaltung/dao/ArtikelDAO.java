@@ -11,7 +11,7 @@ public interface ArtikelDAO {
      * Methode legt einen Artikel in der Datenbank an
      * Liefert das BO dieses zurück
      *
-     * @param connection DB Verbindung
+     * @param connection  DB Verbindung
      * @param bezeichnung Bezeichnung des Artikels
      * @return ArtikelBO
      */
@@ -23,7 +23,7 @@ public interface ArtikelDAO {
      * liefert einen Optional vom Typen ArtikelBO
      *
      * @param connection DB Verbindung
-     * @param artikelId Artikel ID
+     * @param artikelId  Artikel ID
      * @return Optional (ArtikelBO)
      */
     public Optional<ArtikelBO> findeNachId(
@@ -43,7 +43,7 @@ public interface ArtikelDAO {
      * Suche verwendet Teilbegriffe ohne Beachtung der Groß-/Kleinschreibung <br>
      * liefert alle Artikel zurück die mithilfe dieser Suche gefunden wurden
      *
-     * @param connection DB Verbindung
+     * @param connection  DB Verbindung
      * @param suchbegriff Teilbegriff mit dem gesucht wird
      * @return List von ArtikelBOs
      */
@@ -53,7 +53,7 @@ public interface ArtikelDAO {
     /**
      * Ändert die Bezechnung eines Artikels, wenn er existiert
      *
-     * @param connection DB Verbindung
+     * @param connection  DB Verbindung
      * @param artikelId   Artikel ID
      * @param bezeichnung Bezeichnung der die alte Ersetzt
      * @return boolean
@@ -75,7 +75,7 @@ public interface ArtikelDAO {
      * Sucht einen Bestimmten mithilfe einer Id
      *
      * @param connection DB Verbindung
-     * @param artikelId Artikel Id
+     * @param artikelId  Artikel Id
      * @return Optional (ArtikelBO)
      */
     public Optional<ArtikelBO> findeNachIdMitSperre(
@@ -85,7 +85,7 @@ public interface ArtikelDAO {
      * Ändert einen Bestand von einem Artikel <br>
      * Darf nur innerhalb einer Burchungstransaktion nach dem Sperren dieser Artikelzeile verwendet werden
      *
-     * @param connection DB Verbindung
+     * @param connection   DB Verbindung
      * @param artikelId    Artikel Id
      * @param neuerBestand neuer Bestand
      * @return boolean
