@@ -18,7 +18,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class ConnectionFactoryIT {
 
     @Container
-    static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:16-alpine");
+    static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:17-alpine");
 
     private ConnectionConfig gueltigeConfig() {
         return new ConnectionConfig(POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());

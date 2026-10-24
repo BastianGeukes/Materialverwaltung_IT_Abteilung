@@ -27,5 +27,5 @@ jobs:
         run: chmod +x mvnw
 
       - name: Projekt bauen und Junit Tests ausführen
-        run: ./mvnw --batch-mode --no-transfer-progress clean package
+        run: ./mvnw --batch-mode --no-transfer-progress clean verify
 
