@@ -6,13 +6,17 @@ public final class DatabaseMigration {
     private DatabaseMigration() {
     }
 
+    public static void migrate(ConnectionConfig config) {
+        migrate(config.url(), config.user(), config.password());
+    }
+
     public static void migrate(
             String url,
-            String benutzer,
-            String passwort
+            String user,
+            String password
     ) {
         Flyway flyway = Flyway.configure()
-                .dataSource(url, benutzer, passwort)
+                .dataSource(url, user, password)
                 .locations("classpath:db/migration/")
                 .load();
         flyway.migrate();
