@@ -24,13 +24,13 @@ public class JdbcMitarbeiterDAO implements MitarbeiterDAO {
     public MitarbeiterBO anlegen(Connection connection, String name, Abteilung abteilung) {
         String anlegenString =
                 "INSERT INTO \"Mitarbeiter\" (\"Name\", \"Abteilung\") VALUES (?, ?)";
-        try(PreparedStatement mitarbeiterAnlegen = connection.prepareStatement(anlegenString, Statement.RETURN_GENERATED_KEYS)) {
+        try (PreparedStatement mitarbeiterAnlegen = connection.prepareStatement(anlegenString, Statement.RETURN_GENERATED_KEYS)) {
             mitarbeiterAnlegen.setString(1, name);
             mitarbeiterAnlegen.setString(
                     2, abteilung == null ? null : abteilung.name());
             mitarbeiterAnlegen.executeUpdate();
             try (ResultSet resultSet = mitarbeiterAnlegen.getGeneratedKeys()) {
-                if(resultSet.next()) {
+                if (resultSet.next()) {
                     int mitarbeiterID = resultSet.getInt(1);
                     return new MitarbeiterBO(mitarbeiterID, name, abteilung);
                 }
@@ -55,10 +55,10 @@ public class JdbcMitarbeiterDAO implements MitarbeiterDAO {
         String suchString =
                 "SELECT \"Name\",\"Abteilung\" FROM \"Mitarbeiter\" WHERE \"MitarbeiterID\" = ?";
 
-        try(PreparedStatement mitarbeiterSuchen = connection.prepareStatement(suchString)){
+        try (PreparedStatement mitarbeiterSuchen = connection.prepareStatement(suchString)) {
             mitarbeiterSuchen.setInt(1, mitarbeiterId);
             try (ResultSet resultSet = mitarbeiterSuchen.executeQuery()) {
-                if( resultSet.next()) {
+                if (resultSet.next()) {
                     String name = resultSet.getString("Name");
                     String abteilungText = resultSet.getString("Abteilung");
                     Abteilung abteilung = abteilungText == null
@@ -86,10 +86,10 @@ public class JdbcMitarbeiterDAO implements MitarbeiterDAO {
     public List<MitarbeiterBO> findeAlle(Connection connection) {
         String suchString =
                 "SELECT * FROM \"Mitarbeiter\" ORDER BY \"MitarbeiterID\" ASC";
-        try(PreparedStatement allMitarbeiterSuchen = connection.prepareStatement(suchString)){
+        try (PreparedStatement allMitarbeiterSuchen = connection.prepareStatement(suchString)) {
             try (ResultSet resultSet = allMitarbeiterSuchen.executeQuery()) {
                 List<MitarbeiterBO> mitarbeiter = new ArrayList<>();
-                while(resultSet.next()){
+                while (resultSet.next()) {
                     int mitarbeiterID = resultSet.getInt("MitarbeiterID");
                     String name = resultSet.getString("Name");
                     String abteilungText = resultSet.getString("Abteilung");
@@ -124,11 +124,11 @@ public class JdbcMitarbeiterDAO implements MitarbeiterDAO {
                 .replace("!", "!!")
                 .replace("%", "!%")
                 .replace("_", "!_");
-        try(PreparedStatement sucheMitTeilbegriff = connection.prepareStatement(sucheString)){
+        try (PreparedStatement sucheMitTeilbegriff = connection.prepareStatement(sucheString)) {
             sucheMitTeilbegriff.setString(1, "%" + suchmuster + "%");
             try (ResultSet resultSet = sucheMitTeilbegriff.executeQuery()) {
                 List<MitarbeiterBO> mitarbeiter = new ArrayList<>();
-                while(resultSet.next()){
+                while (resultSet.next()) {
                     int mitarbeiterID = resultSet.getInt("MitarbeiterID");
                     String name = resultSet.getString("Name");
                     String abteilungText = resultSet.getString("Abteilung");
@@ -159,9 +159,11 @@ public class JdbcMitarbeiterDAO implements MitarbeiterDAO {
         String bearbeitenString =
                 "UPDATE \"Mitarbeiter\" SET \"Name\" = ?, \"Abteilung\" = ? WHERE \"MitarbeiterID\" = ?";
 
-        try(PreparedStatement bearbeiteMitarbeiter = connection.prepareStatement(bearbeitenString)){
+        try (PreparedStatement bearbeiteMitarbeiter = connection.prepareStatement(bearbeitenString)) {
             bearbeiteMitarbeiter.setString(1, name);
-            bearbeiteMitarbeiter.setString(2, abteilung == null ? null : abteilung.name());
+            bearbeiteMitarbeiter.setString(2, abteilung == null
+                    ? null
+                    : abteilung.name());
             bearbeiteMitarbeiter.setInt(3, mitarbeiterId);
             return bearbeiteMitarbeiter.executeUpdate() == 1;
         } catch (SQLException e) {
@@ -182,7 +184,7 @@ public class JdbcMitarbeiterDAO implements MitarbeiterDAO {
         String bearbeitenString =
                 "UPDATE \"Mitarbeiter\" SET \"Abteilung\" = ? WHERE \"MitarbeiterID\" = ?";
 
-        try(PreparedStatement bearbeiteMitarbeiter = connection.prepareStatement(bearbeitenString)){
+        try (PreparedStatement bearbeiteMitarbeiter = connection.prepareStatement(bearbeitenString)) {
             bearbeiteMitarbeiter.setString(1, abteilung == null ? null : abteilung.name());
             bearbeiteMitarbeiter.setInt(2, mitarbeiterId);
             return bearbeiteMitarbeiter.executeUpdate() == 1;
@@ -204,7 +206,7 @@ public class JdbcMitarbeiterDAO implements MitarbeiterDAO {
         String bearbeitenString =
                 "UPDATE \"Mitarbeiter\" SET \"Name\" = ? WHERE \"MitarbeiterID\" = ?";
 
-        try(PreparedStatement bearbeiteMitarbeiter = connection.prepareStatement(bearbeitenString)){
+        try (PreparedStatement bearbeiteMitarbeiter = connection.prepareStatement(bearbeitenString)) {
             bearbeiteMitarbeiter.setString(1, name);
             bearbeiteMitarbeiter.setInt(2, mitarbeiterId);
             return bearbeiteMitarbeiter.executeUpdate() == 1;
@@ -216,6 +218,7 @@ public class JdbcMitarbeiterDAO implements MitarbeiterDAO {
     /**
      * Löscht einen Mitarbeiter, falls keine Lagerbewegung vorhanden ist
      * Nur Verwenden nach Prüfung das für diesen Mitarbeiter keine Lagerbewegung vorhanden ist
+     *
      * @param connection    DB Verbindung
      * @param mitarbeiterId ID
      * @return boolean
@@ -225,7 +228,7 @@ public class JdbcMitarbeiterDAO implements MitarbeiterDAO {
         String loeschString =
                 "DELETE FROM \"Mitarbeiter\" WHERE \"MitarbeiterID\" = ?";
 
-        try(PreparedStatement mitarbeiterLoeschen = connection.prepareStatement(loeschString)){
+        try (PreparedStatement mitarbeiterLoeschen = connection.prepareStatement(loeschString)) {
             mitarbeiterLoeschen.setInt(1, mitarbeiterId);
             return mitarbeiterLoeschen.executeUpdate() == 1;
         } catch (SQLException e) {
