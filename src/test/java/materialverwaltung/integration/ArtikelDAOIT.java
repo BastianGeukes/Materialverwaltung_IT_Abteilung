@@ -1,6 +1,5 @@
 package materialverwaltung.integration;
 
-import com.sun.source.tree.ArrayAccessTree;
 import materialverwaltung.dao.jdbc.JdbcArtikelDAO;
 import materialverwaltung.db.ConnectionConfig;
 import materialverwaltung.db.ConnectionFactory;
@@ -12,7 +11,6 @@ import org.junit.jupiter.api.Test;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
-import org.testcontainers.shaded.org.checkerframework.checker.units.qual.A;
 
 import java.sql.Connection;
 import java.sql.SQLException;
