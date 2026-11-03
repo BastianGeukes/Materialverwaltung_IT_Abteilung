@@ -598,7 +598,6 @@ public class MitarbeiterDAOIT {
                 assertInstanceOf(SQLException.class, exception.getCause());
                 assertEquals("23503", exception.getSqlState());
             } finally {
-                // Entfernt Mitarbeiter, Artikel und Lagerbewegung.
                 con.rollback();
             }
         }
