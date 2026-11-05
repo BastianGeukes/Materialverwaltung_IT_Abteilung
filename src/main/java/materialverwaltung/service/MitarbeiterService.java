@@ -7,14 +7,9 @@ import materialverwaltung.exception.FachlicheException;
 import materialverwaltung.exception.FachlicherFehler;
 import materialverwaltung.model.Abteilung;
 import materialverwaltung.model.MitarbeiterBO;
-import org.postgresql.util.PSQLException;
-import org.postgresql.util.ServerErrorMessage;
 
-import java.sql.Connection;
-import java.sql.SQLException;
 import java.util.List;
 import java.util.Objects;
-import java.util.function.Function;
 
 /**
  * Mitarbeiterverwaltung mit den Fachregeln aus T01.
@@ -36,14 +31,12 @@ public class MitarbeiterService {
     /** Name des Fremdschlüssels von Lagerbewegung auf Mitarbeiter (V1__schema_anlegen.sql). */
     static final String FK_LAGERBEWEGUNG_MITARBEITER = "fk_Lagerbewegung_Mitarbeiter";
 
-    private static final String SQLSTATE_FREMDSCHLUESSEL = "23503";
-
     private final MitarbeiterDAO mitarbeiterDAO;
-    private final ConnectionFactory connectionFactory;
+    private final Datenbankzugriff datenbank;
 
     public MitarbeiterService(MitarbeiterDAO mitarbeiterDAO, ConnectionFactory connectionFactory) {
         this.mitarbeiterDAO = Objects.requireNonNull(mitarbeiterDAO, "mitarbeiterDAO");
-        this.connectionFactory = Objects.requireNonNull(connectionFactory, "connectionFactory");
+        this.datenbank = new Datenbankzugriff(connectionFactory);
     }
 
     /**
@@ -54,7 +47,7 @@ public class MitarbeiterService {
      */
     public MitarbeiterBO anlegen(String name, Abteilung abteilung) {
         String geprueft = Eingabepruefung.pflichttext(name, "Der Name");
-        return mitVerbindung(con -> mitarbeiterDAO.anlegen(con, geprueft, abteilung));
+        return datenbank.mitVerbindung(con -> mitarbeiterDAO.anlegen(con, geprueft, abteilung));
     }
 
     /**
@@ -64,7 +57,7 @@ public class MitarbeiterService {
      */
     public MitarbeiterBO holeNachId(int mitarbeiterId) {
         int id = Eingabepruefung.id(mitarbeiterId, "Mitarbeiter-ID");
-        return mitVerbindung(con -> mitarbeiterDAO.findeNachId(con, id))
+        return datenbank.mitVerbindung(con -> mitarbeiterDAO.findeNachId(con, id))
                 .orElseThrow(() -> nichtGefunden(id));
     }
 
@@ -72,7 +65,7 @@ public class MitarbeiterService {
      * Liefert alle Mitarbeiter, aufsteigend nach ID sortiert.
      */
     public List<MitarbeiterBO> auflisten() {
-        return mitVerbindung(mitarbeiterDAO::findeAlle);
+        return datenbank.mitVerbindung(mitarbeiterDAO::findeAlle);
     }
 
     /**
@@ -81,7 +74,7 @@ public class MitarbeiterService {
      */
     public List<MitarbeiterBO> suchen(String suchbegriff) {
         String geprueft = Eingabepruefung.suchbegriff(suchbegriff);
-        return mitVerbindung(con -> mitarbeiterDAO.sucheNachName(con, geprueft));
+        return datenbank.mitVerbindung(con -> mitarbeiterDAO.sucheNachName(con, geprueft));
     }
 
     /**
@@ -94,7 +87,7 @@ public class MitarbeiterService {
         int id = Eingabepruefung.id(mitarbeiterId, "Mitarbeiter-ID");
         String geprueft = Eingabepruefung.pflichttext(name, "Der Name");
 
-        boolean geaendert = mitVerbindung(con -> mitarbeiterDAO.bearbeiten(con, id, geprueft, abteilung));
+        boolean geaendert = datenbank.mitVerbindung(con -> mitarbeiterDAO.bearbeiten(con, id, geprueft, abteilung));
         if (!geaendert) {
             throw nichtGefunden(id);
         }
@@ -111,9 +104,9 @@ public class MitarbeiterService {
 
         boolean geloescht;
         try {
-            geloescht = mitVerbindung(con -> mitarbeiterDAO.loeschen(con, id));
+            geloescht = datenbank.mitVerbindung(con -> mitarbeiterDAO.loeschen(con, id));
         } catch (DatenzugriffsException e) {
-            if (istVerweisAusLagerbewegung(e)) {
+            if (Datenbankzugriff.verletzt(e, Datenbankzugriff.SQLSTATE_FREMDSCHLUESSEL, FK_LAGERBEWEGUNG_MITARBEITER)) {
                 throw new FachlicheException(FachlicherFehler.MITARBEITER_HAT_BEWEGUNGEN,
                         "Mitarbeiter " + id + " kann nicht gelöscht werden, "
                                 + "weil Lagerbewegungen auf ihn verweisen.", e);
@@ -123,34 +116,6 @@ public class MitarbeiterService {
         if (!geloescht) {
             throw nichtGefunden(id);
         }
-    }
-
-    /**
-     * Öffnet eine Verbindung, führt die Arbeit aus und schließt die Verbindung
-     * zuverlässig – auch wenn die Arbeit mit einer Exception endet.
-     */
-    private <T> T mitVerbindung(Function<Connection, T> arbeit) {
-        try (Connection con = connectionFactory.openConnection()) {
-            return arbeit.apply(con);
-        } catch (SQLException e) {
-            // Kann nur beim Schließen der Verbindung auftreten
-            throw new DatenzugriffsException("Die Datenbankverbindung konnte nicht geschlossen werden.", e);
-        }
-    }
-
-    /**
-     * Prüft, ob der Datenbankfehler genau der Fremdschlüssel von Lagerbewegung auf
-     * Mitarbeiter ist. Andere Konflikte bleiben technische Fehler (T01, Abschnitt 8).
-     */
-    private static boolean istVerweisAusLagerbewegung(DatenzugriffsException e) {
-        if (!SQLSTATE_FREMDSCHLUESSEL.equals(e.getSqlState())) {
-            return false;
-        }
-        if (e.getCause() instanceof PSQLException psql) {
-            ServerErrorMessage details = psql.getServerErrorMessage();
-            return details != null && FK_LAGERBEWEGUNG_MITARBEITER.equalsIgnoreCase(details.getConstraint());
-        }
-        return false;
     }
 
     private static FachlicheException nichtGefunden(int id) {
