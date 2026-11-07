@@ -11,13 +11,19 @@ import materialverwaltung.exception.UnzureichenderBestandException;
 import materialverwaltung.model.ArtikelBO;
 import materialverwaltung.model.Bewegungsart;
 import materialverwaltung.model.Buchungsergebnis;
+import materialverwaltung.model.Historieneintrag;
 import materialverwaltung.model.LagerbewegungBO;
+import materialverwaltung.model.MitarbeiterBO;
 
 import java.sql.Connection;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 /**
- * Materialbuchungen nach T01 (Abschnitt 3 und 7).
+ * Materialbuchungen und Bewegungshistorie nach T01 (Abschnitt 3, 6 und 7).
  *
  * <p>Eine Buchung läuft vollständig in einer Transaktion auf einer Verbindung:</p>
  * <ol>
@@ -117,6 +123,47 @@ public class MaterialService {
 
             return speichereBuchung(con, artikel, empfaenger, Bewegungsart.AUSGANG, geprueftMenge, neuerBestand);
         });
+    }
+
+    /**
+     * Liefert die Bewegungshistorie mit den aktuellen Artikel- und Mitarbeiternamen.
+     *
+     * <p>Sortierung wie vom DAO festgelegt: Zeitpunkt absteigend, bei gleichem Zeitpunkt
+     * Bewegungs-ID absteigend. Eine leere Historie ist ein gültiges Ergebnis.</p>
+     *
+     * <p>Es werden drei Abfragen auf einer Verbindung ausgeführt (keine Abfrage pro Zeile).
+     * Die Bewegungen werden zuerst gelesen: Artikel und Mitarbeiter, auf die sie verweisen,
+     * können danach wegen der Fremdschlüssel nicht mehr gelöscht werden und sind daher
+     * in den folgenden Abfragen immer enthalten.</p>
+     */
+    public List<Historieneintrag> historie() {
+        return datenbank.mitVerbindung(con -> {
+            List<LagerbewegungBO> bewegungen = lagerbewegungDAO.findeAlle(con);
+            if (bewegungen.isEmpty()) {
+                return List.of();
+            }
+            Map<Integer, String> artikelNamen = artikelDAO.findeAlle(con).stream()
+                    .collect(Collectors.toMap(ArtikelBO::getArtikelId, ArtikelBO::getBezeichnung));
+            Map<Integer, String> mitarbeiterNamen = mitarbeiterDAO.findeAlle(con).stream()
+                    .collect(Collectors.toMap(MitarbeiterBO::getMitarbeiterId, MitarbeiterBO::getName));
+
+            List<Historieneintrag> eintraege = new ArrayList<>(bewegungen.size());
+            for (LagerbewegungBO bewegung : bewegungen) {
+                eintraege.add(new Historieneintrag(bewegung,
+                        name(artikelNamen, bewegung.getArtikelId(), "Artikel"),
+                        name(mitarbeiterNamen, bewegung.getMitarbeiterId(), "Mitarbeiter")));
+            }
+            return List.copyOf(eintraege);
+        });
+    }
+
+    private static String name(Map<Integer, String> namen, int id, String art) {
+        String name = namen.get(id);
+        if (name == null) {
+            // Durch die Fremdschlüssel ausgeschlossen – würde auf einen Programmfehler hinweisen
+            throw new IllegalStateException(art + " " + id + " einer Lagerbewegung fehlt in der Datenbank.");
+        }
+        return name;
     }
 
     /**
