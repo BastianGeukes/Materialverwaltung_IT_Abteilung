@@ -2,6 +2,7 @@ package materialverwaltung.service;
 
 import materialverwaltung.db.ConnectionFactory;
 import materialverwaltung.exception.DatenzugriffsException;
+import materialverwaltung.exception.UnklarerAusgangException;
 import org.postgresql.util.PSQLException;
 import org.postgresql.util.ServerErrorMessage;
 
@@ -18,6 +19,8 @@ import java.util.function.Function;
  *     <li>{@link #inTransaktion} führt mehrere Schritte atomar aus: Commit bei Erfolg,
  *         sonst vollständiger Rollback. Ein Rollback-Fehler verdrängt die ursprüngliche
  *         Ursache nicht, sondern wird als unterdrückter Fehler angehängt.</li>
+ *     <li>Scheitert der Commit selbst, ist der Ausgang unklar: dann wird eine
+ *         {@link UnklarerAusgangException} geworfen.</li>
  * </ul>
  */
 final class Datenbankzugriff {
@@ -74,8 +77,7 @@ final class Datenbankzugriff {
             try {
                 con.commit();
             } catch (SQLException e) {
-                DatenzugriffsException fehler =
-                        new DatenzugriffsException(COMMIT_UNKLAR, e);
+                UnklarerAusgangException fehler = new UnklarerAusgangException(COMMIT_UNKLAR, e);
                 rollback(con, fehler);
                 throw fehler;
             }

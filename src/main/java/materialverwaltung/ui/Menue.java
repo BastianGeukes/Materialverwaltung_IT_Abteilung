@@ -4,6 +4,7 @@ import materialverwaltung.exception.DatenzugriffsException;
 import materialverwaltung.exception.EingabeAbgebrochenException;
 import materialverwaltung.exception.EingabeendeException;
 import materialverwaltung.exception.FachlicheException;
+import materialverwaltung.exception.UnklarerAusgangException;
 
 import java.io.PrintStream;
 import java.util.ArrayList;
@@ -18,13 +19,20 @@ import java.util.Objects;
  * Nach jeder Aktion wird das Menü erneut angezeigt.</p>
  *
  * <p>Fehler aus einer Aktion werden hier einheitlich gemeldet: Fachfehler mit ihrer
- * Meldung, technische Fehler neutral ohne SQL-Details. Ein Abbruch der Eingabe führt
- * zurück zur Menüauswahl.</p>
+ * Meldung, technische Fehler neutral ohne SQL-Details. Ist der Ausgang einer Änderung
+ * unklar (Commit gescheitert), wird zur Prüfung aufgefordert. Ein Abbruch der Eingabe
+ * führt zurück zur Menüauswahl.</p>
  */
 public class Menue {
 
     static final String TECHNISCHER_FEHLER =
             "Ein technischer Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.";
+
+    /** T01, Abschnitt 7: weder Erfolg noch sichere Nichtbuchung behaupten, keine Wiederholung. */
+    static final String AUSGANG_UNKLAR =
+            "Achtung: Die Verbindung zur Datenbank ist beim Speichern unterbrochen worden. "
+                    + "Es ist unklar, ob die Aktion ausgeführt wurde. Bitte prüfen Sie Bestand und Historie, "
+                    + "bevor Sie die Aktion wiederholen.";
 
     private record Menuepunkt(String bezeichnung, MenueAktion aktion) {
     }
@@ -88,6 +96,8 @@ public class Menue {
             ausgabe.println("Eingabe abgebrochen.");
         } catch (FachlicheException e) {
             ausgabe.println("Fehler: " + e.getMessage());
+        } catch (UnklarerAusgangException e) {
+            ausgabe.println(AUSGANG_UNKLAR);
         } catch (DatenzugriffsException e) {
             ausgabe.println(TECHNISCHER_FEHLER);
         }
