@@ -54,6 +54,17 @@ final class Eingabepruefung {
         return id;
     }
 
+    /**
+     * Prüft, dass eine Buchungsmenge eine positive ganze Zahl ist. Das Vorzeichen
+     * bestimmt nicht die Bewegungsrichtung (T01, Abschnitt 3).
+     */
+    static int menge(int menge) {
+        if (menge <= 0) {
+            throw ungueltig("Die Menge muss eine positive ganze Zahl sein (eingegeben: " + menge + ").");
+        }
+        return menge;
+    }
+
     private static void pruefeLaenge(String text, String feldname) {
         int laenge = text.codePointCount(0, text.length());
         if (laenge > MAX_TEXTLAENGE) {

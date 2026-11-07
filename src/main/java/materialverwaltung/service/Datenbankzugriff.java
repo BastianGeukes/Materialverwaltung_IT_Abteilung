@@ -25,6 +25,13 @@ final class Datenbankzugriff {
     static final String SQLSTATE_EINDEUTIGKEIT = "23505";
     static final String SQLSTATE_FREMDSCHLUESSEL = "23503";
 
+    /**
+     * Meldung, wenn der Commit selbst scheitert (z. B. Verbindungsabbruch). Der Ausgang ist
+     * dann unklar: Die Änderung kann gespeichert sein oder nicht (T01, Abschnitt 7).
+     */
+    static final String COMMIT_UNKLAR = "Die Bestätigung der Transaktion ist fehlgeschlagen. "
+            + "Ob die Änderung gespeichert wurde, ist unklar.";
+
     private final ConnectionFactory connectionFactory;
 
     Datenbankzugriff(ConnectionFactory connectionFactory) {
@@ -68,7 +75,7 @@ final class Datenbankzugriff {
                 con.commit();
             } catch (SQLException e) {
                 DatenzugriffsException fehler =
-                        new DatenzugriffsException("Die Änderung konnte nicht gespeichert werden.", e);
+                        new DatenzugriffsException(COMMIT_UNKLAR, e);
                 rollback(con, fehler);
                 throw fehler;
             }
