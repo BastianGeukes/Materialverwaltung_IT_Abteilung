@@ -9,6 +9,7 @@ import materialverwaltung.db.DatabaseMigration;
 import materialverwaltung.exception.DatenzugriffsException;
 import materialverwaltung.exception.FachlicheException;
 import materialverwaltung.exception.FachlicherFehler;
+import materialverwaltung.exception.UnzureichenderBestandException;
 import materialverwaltung.model.Bewegungsart;
 import materialverwaltung.model.Buchungsergebnis;
 import materialverwaltung.model.LagerbewegungBO;
@@ -32,14 +33,17 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Integrationstests für den Materialeingang (T13) mit echten DAOs und PostgreSQL.
+ * Integrationstests für Materialeingang (T13) und Materialausgabe (T14) mit echten DAOs und PostgreSQL.
  * Bestand und Lagerbewegungen werden direkt in der Datenbank nachgeprüft.
  */
 @Testcontainers
@@ -55,6 +59,7 @@ class MaterialServiceIT {
 
     private int maus;
     private int anna;
+    private int ben;
 
     @BeforeAll
     static void datenbankVorbereiten() {
@@ -67,6 +72,7 @@ class MaterialServiceIT {
         sql("TRUNCATE \"Lagerbewegung\", \"Artikel\", \"Mitarbeiter\" RESTART IDENTITY");
         maus = legeArtikelAn("Maus", 0);
         anna = legeMitarbeiterAn("Anna");
+        ben = legeMitarbeiterAn("Ben");
         connectionFactory = new ZaehlendeConnectionFactory(config);
         service = new MaterialService(new JdbcArtikelDAO(), new JdbcMitarbeiterDAO(),
                 new JdbcLagerbewegungDAO(), connectionFactory);
@@ -246,6 +252,190 @@ class MaterialServiceIT {
         }
     }
 
+    // ========== Materialausgabe (T14) ==========
+
+    @Test
+    void teilausgabeVermindertBestandUndSpeichertAusgangMitEmpfaenger() throws SQLException {
+        service.einlagern(maus, anna, 5);
+
+        Buchungsergebnis ergebnis = service.ausgeben(maus, ben, 2);
+
+        assertEquals(3, ergebnis.neuerBestand());
+        LagerbewegungBO bewegung = ergebnis.bewegung();
+        assertEquals(Bewegungsart.AUSGANG, bewegung.getBewegungsart());
+        assertEquals(2, bewegung.getMenge());
+        assertEquals(ben, bewegung.getMitarbeiterId(), "Mitarbeiter ist der Empfänger");
+        assertEquals(maus, bewegung.getArtikelId());
+        assertTrue(bewegung.getLagerbewegungId() > 0);
+        assertNotNull(bewegung.getZeitpunkt());
+
+        assertEquals(3, bestand(maus));
+        assertEquals(List.of("Eingang|5|" + anna, "Ausgang|2|" + ben), bewegungen(maus),
+                "Eingang 5, Ausgang 2 -> genau zwei Bewegungen");
+        assertBestandPasstZurHistorie(maus);
+    }
+
+    @Test
+    void vollstaendigeEntnahmeGenauInBestandshoeheIstErlaubt() throws SQLException {
+        service.einlagern(maus, anna, 5);
+
+        Buchungsergebnis ergebnis = service.ausgeben(maus, ben, 5);
+
+        assertEquals(0, ergebnis.neuerBestand());
+        assertEquals(0, bestand(maus));
+        assertEquals(2, bewegungen(maus).size());
+        assertBestandPasstZurHistorie(maus);
+    }
+
+    @Test
+    void ueberausgabeLoestUnzureichenderBestandExceptionOhneAenderungAus() throws SQLException {
+        service.einlagern(maus, anna, 5);
+
+        UnzureichenderBestandException e = assertThrows(UnzureichenderBestandException.class,
+                () -> service.ausgeben(maus, ben, 6));
+
+        assertInstanceOf(FachlicheException.class, e, "Unterklasse von FachlicheException");
+        assertEquals(FachlicherFehler.UNZUREICHENDER_BESTAND, e.getFehler());
+        assertEquals(maus, e.getArtikelId());
+        assertEquals(6, e.getAngefordert());
+        assertEquals(5, e.getVerfuegbar());
+        assertTrue(e.getMessage().contains("verfügbar sind nur 5"), e.getMessage());
+
+        assertEquals(5, bestand(maus), "keine Änderung");
+        assertEquals(List.of("Eingang|5|" + anna), bewegungen(maus), "keine Ausgangsbewegung");
+    }
+
+    @Test
+    void ausgabeBeiBestandNullWirdAbgelehnt() throws SQLException {
+        UnzureichenderBestandException e = assertThrows(UnzureichenderBestandException.class,
+                () -> service.ausgeben(maus, ben, 1));
+
+        assertEquals(0, e.getVerfuegbar());
+        assertKeineAenderung(0);
+    }
+
+    @Test
+    void ausgabeMitUngueltigenAngabenOderFehlendenReferenzenHinterlaesstKeineTeilbuchung() throws SQLException {
+        service.einlagern(maus, anna, 5);
+
+        assertFachlich(FachlicherFehler.UNGUELTIGE_EINGABE, () -> service.ausgeben(maus, ben, 0));
+        assertFachlich(FachlicherFehler.UNGUELTIGE_EINGABE, () -> service.ausgeben(maus, ben, -2));
+        assertFachlich(FachlicherFehler.ARTIKEL_NICHT_GEFUNDEN, () -> service.ausgeben(999, ben, 1));
+        assertFachlich(FachlicherFehler.MITARBEITER_NICHT_GEFUNDEN, () -> service.ausgeben(maus, 999, 1));
+
+        assertEquals(5, bestand(maus));
+        assertEquals(1, anzahlBewegungen());
+    }
+
+    @Test
+    void technischerFehlerBeiDerAusgabeHinterlaesstKeineTeilbuchung() throws SQLException {
+        service.einlagern(maus, anna, 5);
+        // Das Speichern der Ausgangsbewegung scheitert wirklich in der Datenbank,
+        // nachdem der Bestand bereits vermindert wurde.
+        sql("ALTER TABLE \"Lagerbewegung\" ADD CONSTRAINT test_kein_ausgang CHECK (\"Bewegungsart\" <> 'Ausgang')");
+        try {
+            DatenzugriffsException e = assertThrows(DatenzugriffsException.class,
+                    () -> service.ausgeben(maus, ben, 3));
+
+            assertEquals("23514", e.getSqlState());
+            assertEquals(5, bestand(maus), "Bestandsminderung wurde zurückgerollt");
+            assertEquals(1, anzahlBewegungen());
+        } finally {
+            sql("ALTER TABLE \"Lagerbewegung\" DROP CONSTRAINT test_kein_ausgang");
+        }
+    }
+
+    @Test
+    void zweiGleichzeitigeAusgabenVonJeVierBeiBestandFuenf() throws Exception {
+        // Beispiel aus T01: genau eine Ausgabe gelingt, Endbestand 1
+        for (int runde = 0; runde < 5; runde++) {
+            sql("TRUNCATE \"Lagerbewegung\"");
+            setzeBestand(maus, 5);
+
+            CountDownLatch start = new CountDownLatch(1);
+            ExecutorService executor = Executors.newFixedThreadPool(2);
+            try {
+                List<Future<Buchungsergebnis>> ausgaben = new ArrayList<>();
+                for (int i = 0; i < 2; i++) {
+                    ausgaben.add(executor.submit(() -> {
+                        start.await();
+                        return service.ausgeben(maus, ben, 4);
+                    }));
+                }
+                start.countDown();
+
+                int erfolgreich = 0;
+                int abgelehnt = 0;
+                for (Future<Buchungsergebnis> ausgabe : ausgaben) {
+                    try {
+                        assertEquals(1, ausgabe.get(30, TimeUnit.SECONDS).neuerBestand());
+                        erfolgreich++;
+                    } catch (ExecutionException e) {
+                        assertInstanceOf(UnzureichenderBestandException.class, e.getCause());
+                        abgelehnt++;
+                    }
+                }
+                assertEquals(1, erfolgreich, "genau eine Ausgabe gelingt (Runde " + runde + ")");
+                assertEquals(1, abgelehnt);
+            } finally {
+                executor.shutdownNow();
+            }
+            assertEquals(1, bestand(maus), "Endbestand 1 (Runde " + runde + ")");
+            assertEquals(1, anzahlBewegungen());
+        }
+    }
+
+    @Test
+    void parallelAusgabenGebenNieMehrAlsDenBestandAus() throws Exception {
+        service.einlagern(maus, anna, 50);
+        int threads = 8;
+        int versucheProThread = 10;
+        AtomicInteger erfolgreich = new AtomicInteger();
+        AtomicInteger abgelehnt = new AtomicInteger();
+
+        ExecutorService executor = Executors.newFixedThreadPool(threads);
+        try {
+            List<Future<?>> laeufe = new ArrayList<>();
+            for (int t = 0; t < threads; t++) {
+                laeufe.add(executor.submit(() -> {
+                    for (int i = 0; i < versucheProThread; i++) {
+                        try {
+                            service.ausgeben(maus, ben, 1);
+                            erfolgreich.incrementAndGet();
+                        } catch (UnzureichenderBestandException e) {
+                            abgelehnt.incrementAndGet();
+                        }
+                    }
+                    return null;
+                }));
+            }
+            for (Future<?> lauf : laeufe) {
+                lauf.get(60, TimeUnit.SECONDS);
+            }
+        } finally {
+            executor.shutdownNow();
+        }
+
+        assertEquals(50, erfolgreich.get(), "genau der Bestand wird ausgegeben");
+        assertEquals(30, abgelehnt.get());
+        assertEquals(0, bestand(maus));
+        assertEquals(51, anzahlBewegungen(), "1 Eingang + 50 Ausgänge");
+        assertBestandPasstZurHistorie(maus);
+    }
+
+    @Test
+    void verbindungenWerdenAuchBeiAusgabenGeschlossen() throws SQLException {
+        service.einlagern(maus, anna, 2);
+        service.ausgeben(maus, ben, 1);
+        assertThrows(UnzureichenderBestandException.class, () -> service.ausgeben(maus, ben, 5));
+        assertThrows(FachlicheException.class, () -> service.ausgeben(maus, 999, 1));
+
+        assertEquals(4, connectionFactory.geoeffnet.size());
+        for (Connection con : connectionFactory.geoeffnet) {
+            assertTrue(con.isClosed());
+        }
+    }
+
     // ---------- Hilfsmethoden ----------
 
     private static FachlicheException assertFachlich(FachlicherFehler erwartet, Executable aufruf) {
@@ -340,12 +530,23 @@ class MaterialServiceIT {
         }
     }
 
+    /** Bestand = Summe aller Eingänge − Summe aller Ausgänge (T01, Abschnitt 3). */
+    private static void assertBestandPasstZurHistorie(int artikelId) throws SQLException {
+        assertEquals(summe(artikelId, "Eingang") - summe(artikelId, "Ausgang"), bestand(artikelId),
+                "Bestand muss zur Bewegungshistorie passen");
+    }
+
     private static long summeEingaenge(int artikelId) throws SQLException {
+        return summe(artikelId, "Eingang");
+    }
+
+    private static long summe(int artikelId, String bewegungsart) throws SQLException {
         try (Connection con = new ConnectionFactory(config).openConnection();
              PreparedStatement ps = con.prepareStatement(
                      "SELECT COALESCE(SUM(\"Menge\"), 0) FROM \"Lagerbewegung\" "
-                             + "WHERE \"ArtikelID\" = ? AND \"Bewegungsart\" = 'Eingang'")) {
+                             + "WHERE \"ArtikelID\" = ? AND \"Bewegungsart\" = ?")) {
             ps.setInt(1, artikelId);
+            ps.setString(2, bewegungsart);
             try (ResultSet rs = ps.executeQuery()) {
                 rs.next();
                 return rs.getLong(1);

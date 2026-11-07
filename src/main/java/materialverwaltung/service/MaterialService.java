@@ -7,6 +7,7 @@ import materialverwaltung.db.ConnectionFactory;
 import materialverwaltung.exception.DatenzugriffsException;
 import materialverwaltung.exception.FachlicheException;
 import materialverwaltung.exception.FachlicherFehler;
+import materialverwaltung.exception.UnzureichenderBestandException;
 import materialverwaltung.model.ArtikelBO;
 import materialverwaltung.model.Bewegungsart;
 import materialverwaltung.model.Buchungsergebnis;
@@ -29,6 +30,9 @@ import java.util.Objects;
  *     <li>Genau eine Lagerbewegung speichern.</li>
  *     <li>Commit ausführen, Verbindung schließen, Buchungsergebnis zurückgeben.</li>
  * </ol>
+ *
+ * <p>Bei einer Ausgabe wird der Bestand in Schritt 5 unter der Artikelsperre geprüft;
+ * eine Überausgabe löst eine {@link UnzureichenderBestandException} aus.</p>
  *
  * <p>Jeder Fehler nach Transaktionsbeginn führt zu einem vollständigen Rollback –
  * es entsteht nie eine Teilbuchung. Fachliche Ablehnungen sind {@link FachlicheException}s,
@@ -78,6 +82,40 @@ public class MaterialService {
             int neuerBestand = bisher + geprueftMenge;
 
             return speichereBuchung(con, artikel, erfasser, Bewegungsart.EINGANG, geprueftMenge, neuerBestand);
+        });
+    }
+
+    /**
+     * Bucht eine Materialausgabe: vermindert den Bestand und speichert genau eine
+     * Ausgangsbewegung. Der Mitarbeiter ist der Empfänger.
+     *
+     * <p>Der verfügbare Bestand wird unter derselben Artikelsperre geprüft, die auch die
+     * Änderung schützt. Eine Ausgabe genau in Bestandshöhe ist erlaubt.</p>
+     *
+     * @param artikelId    positiver Artikel
+     * @param empfaengerId positiver Mitarbeiter, der das Material erhält
+     * @param menge        positive Menge
+     * @return die gespeicherte Bewegung und der Bestand unmittelbar nach der Buchung
+     * @throws UnzureichenderBestandException wenn die Menge den Bestand übersteigt
+     * @throws FachlicheException             UNGUELTIGE_EINGABE, ARTIKEL_NICHT_GEFUNDEN
+     *                                        oder MITARBEITER_NICHT_GEFUNDEN
+     */
+    public Buchungsergebnis ausgeben(int artikelId, int empfaengerId, int menge) {
+        int artikel = Eingabepruefung.id(artikelId, "Artikel-ID");
+        int empfaenger = Eingabepruefung.id(empfaengerId, "Mitarbeiter-ID");
+        int geprueftMenge = Eingabepruefung.menge(menge);
+
+        return datenbank.inTransaktion(con -> {
+            ArtikelBO gesperrt = sperreArtikel(con, artikel);
+            pruefeMitarbeiter(con, empfaenger);
+
+            int bisher = gesperrt.getBestand();
+            if (geprueftMenge > bisher) {
+                throw new UnzureichenderBestandException(artikel, geprueftMenge, bisher);
+            }
+            int neuerBestand = bisher - geprueftMenge;
+
+            return speichereBuchung(con, artikel, empfaenger, Bewegungsart.AUSGANG, geprueftMenge, neuerBestand);
         });
     }
 
