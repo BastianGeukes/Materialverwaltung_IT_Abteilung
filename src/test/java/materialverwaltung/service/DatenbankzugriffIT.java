@@ -4,6 +4,7 @@ import materialverwaltung.db.ConnectionConfig;
 import materialverwaltung.db.ConnectionFactory;
 import materialverwaltung.db.DatabaseMigration;
 import materialverwaltung.exception.DatenzugriffsException;
+import materialverwaltung.exception.UnklarerAusgangException;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -97,6 +98,34 @@ class DatenbankzugriffIT {
         assertEquals("abgelehnt", e.getMessage());
         assertEquals(0, anzahlArtikel());
         assertVerbindungenGeschlossen();
+    }
+
+    @Test
+    void scheiternderCommitWirdAlsUnklarerAusgangGemeldet() throws SQLException {
+        // Eine erst beim Commit geprüfte Bedingung lässt den Commit wirklich scheitern
+        try (Connection con = new ConnectionFactory(config).openConnection();
+             Statement st = con.createStatement()) {
+            st.execute("ALTER TABLE \"Artikel\" ADD CONSTRAINT test_commit_scheitert FOREIGN KEY (\"Bestand\") "
+                    + "REFERENCES \"Artikel\" (\"ArtikelID\") DEFERRABLE INITIALLY DEFERRED NOT VALID");
+        }
+        try {
+            UnklarerAusgangException e = assertThrows(UnklarerAusgangException.class, () ->
+                    datenbank.inTransaktion(con -> {
+                        fuegeArtikelEin(con, "A"); // Bestand 0 verweist auf keinen Artikel 0
+                        return null;
+                    }));
+
+            assertInstanceOf(DatenzugriffsException.class, e, "bleibt ein technischer Fehler");
+            assertEquals("23503", e.getSqlState());
+            assertTrue(e.getMessage().contains("unklar"), e.getMessage());
+            assertVerbindungenGeschlossen();
+        } finally {
+            try (Connection con = new ConnectionFactory(config).openConnection();
+                 Statement st = con.createStatement()) {
+                st.execute("ALTER TABLE \"Artikel\" DROP CONSTRAINT test_commit_scheitert");
+            }
+        }
+        assertEquals(0, anzahlArtikel());
     }
 
     @Test

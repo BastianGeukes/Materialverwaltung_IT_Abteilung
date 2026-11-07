@@ -4,6 +4,7 @@ import materialverwaltung.exception.DatenzugriffsException;
 import materialverwaltung.exception.EingabeendeException;
 import materialverwaltung.exception.FachlicheException;
 import materialverwaltung.exception.FachlicherFehler;
+import materialverwaltung.exception.UnklarerAusgangException;
 import org.junit.jupiter.api.Test;
 
 import java.io.BufferedReader;
@@ -103,6 +104,18 @@ class MenueTest {
         assertFalse(ausgabe().contains("password"));
         assertFalse(ausgabe().contains("geheim"));
         assertFalse(ausgabe().contains("28P01"));
+    }
+
+    @Test
+    void unklarerAusgangWirdMitPruefhinweisGemeldet() {
+        menue("1\n0\n").punktHinzufuegen("Buchen", () -> {
+            throw new UnklarerAusgangException("Commit gescheitert",
+                    new SQLException("An I/O error occurred while sending to the backend.", "08006"));
+        }).anzeigen();
+
+        assertTrue(ausgabe().contains(Menue.AUSGANG_UNKLAR));
+        assertFalse(ausgabe().contains(Menue.TECHNISCHER_FEHLER), "keine allgemeine Fehlermeldung");
+        assertFalse(ausgabe().contains("08006"));
     }
 
     @Test
