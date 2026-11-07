@@ -1,8 +1,15 @@
 package materialverwaltung;
 
+import materialverwaltung.dao.jdbc.JdbcArtikelDAO;
+import materialverwaltung.dao.jdbc.JdbcLagerbewegungDAO;
+import materialverwaltung.dao.jdbc.JdbcMitarbeiterDAO;
 import materialverwaltung.db.ConnectionConfig;
 import materialverwaltung.db.ConnectionFactory;
 import materialverwaltung.db.DatabaseMigration;
+import materialverwaltung.service.ArtikelService;
+import materialverwaltung.service.MaterialService;
+import materialverwaltung.service.MitarbeiterService;
+import materialverwaltung.ui.*;
 import org.flywaydb.core.api.FlywayException;
 
 public class Main {
@@ -28,6 +35,33 @@ public class Main {
         }
 
         ConnectionFactory connectionFactory = new ConnectionFactory(config);
-        // TODO: DAOs, Services und UI mit connectionFactory aufbauen
+
+        //JDBC-DAOs erstellen
+        JdbcArtikelDAO artikelDAO = new JdbcArtikelDAO();
+        JdbcMitarbeiterDAO mitarbeiterDAO = new JdbcMitarbeiterDAO();
+        JdbcLagerbewegungDAO lagerbewegungDAO = new JdbcLagerbewegungDAO();
+
+        //Services mit denselben DAOs und derselben ConnectionFactory
+        ArtikelService artikelService =
+                new ArtikelService(artikelDAO, connectionFactory);
+
+        MitarbeiterService mitarbeiterService =
+                new MitarbeiterService(mitarbeiterDAO, connectionFactory);
+
+        MaterialService materialService =
+                new MaterialService(artikelDAO,mitarbeiterDAO,lagerbewegungDAO,connectionFactory);
+
+        //Konsole erstellen und Bereiche einbinden
+        KonsolenUI konsole = new KonsolenUI(System.in, System.out);
+
+        MitarbeiterUI.einbinden(konsole,mitarbeiterService);
+        ArtikelUI.einbinden(konsole,artikelService);
+        MaterialUI.einbinden(
+                konsole,materialService, artikelService, mitarbeiterService
+        );
+        HistorieUI.einbinden(konsole, materialService);
+
+        //Anwendung starten
+        konsole.starten();
     }
 }
