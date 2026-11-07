@@ -12,6 +12,7 @@ import materialverwaltung.exception.FachlicherFehler;
 import materialverwaltung.exception.UnzureichenderBestandException;
 import materialverwaltung.model.Bewegungsart;
 import materialverwaltung.model.Buchungsergebnis;
+import materialverwaltung.model.Historieneintrag;
 import materialverwaltung.model.LagerbewegungBO;
 import materialverwaltung.service.MaterialService;
 import org.junit.jupiter.api.BeforeAll;
@@ -43,7 +44,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Integrationstests für Materialeingang (T13) und Materialausgabe (T14) mit echten DAOs und PostgreSQL.
+ * Integrationstests für Materialeingang (T13), Materialausgabe (T14) und Bewegungshistorie (T15)
+ * mit echten DAOs und PostgreSQL.
  * Bestand und Lagerbewegungen werden direkt in der Datenbank nachgeprüft.
  */
 @Testcontainers
@@ -436,6 +438,107 @@ class MaterialServiceIT {
         }
     }
 
+    // ========== Bewegungshistorie (T15) ==========
+
+    @Test
+    void leereHistorieIstEinGueltigesErgebnis() {
+        assertEquals(List.of(), service.historie());
+    }
+
+    @Test
+    void historieEnthaeltAlleAngabenMitDerRichtigenMitarbeiterrolle() throws SQLException {
+        int tastatur = legeArtikelAn("Tastatur", 0);
+        Buchungsergebnis eingang = service.einlagern(maus, anna, 5);
+        Buchungsergebnis ausgang = service.ausgeben(maus, ben, 2);
+        Buchungsergebnis eingang2 = service.einlagern(tastatur, ben, 7);
+
+        List<Historieneintrag> historie = service.historie();
+
+        assertEquals(3, historie.size());
+        // Neueste Bewegung zuerst
+        Historieneintrag e0 = historie.get(0);
+        assertEquals(eingang2.bewegung().getLagerbewegungId(), e0.bewegung().getLagerbewegungId());
+        assertEintrag(e0, tastatur, "Tastatur", ben, "Ben", Bewegungsart.EINGANG, 7, "Erfasser");
+
+        Historieneintrag e1 = historie.get(1);
+        assertEquals(ausgang.bewegung().getLagerbewegungId(), e1.bewegung().getLagerbewegungId());
+        assertEintrag(e1, maus, "Maus", ben, "Ben", Bewegungsart.AUSGANG, 2, "Empfänger");
+
+        Historieneintrag e2 = historie.get(2);
+        assertEquals(eingang.bewegung().getLagerbewegungId(), e2.bewegung().getLagerbewegungId());
+        assertEintrag(e2, maus, "Maus", anna, "Anna", Bewegungsart.EINGANG, 5, "Erfasser");
+
+        // Zeitpunkte stimmen mit den gespeicherten Bewegungen überein
+        assertEquals(eingang.bewegung().getZeitpunkt().toInstant(), e2.zeitpunkt().toInstant());
+        for (Historieneintrag eintrag : historie) {
+            assertNotNull(eintrag.zeitpunkt());
+        }
+    }
+
+    @Test
+    void reihenfolgeZeitpunktAbsteigendUndBeiGleichstandIdAbsteigend() throws SQLException {
+        // Zeitpunkte direkt setzen, um die festgelegte Sortierung gezielt zu prüfen
+        int a = legeBewegungAn(maus, anna, "Eingang", 1, "2026-11-01T10:00:00Z");
+        int b = legeBewegungAn(maus, anna, "Eingang", 2, "2026-11-03T10:00:00Z");
+        int c = legeBewegungAn(maus, ben, "Ausgang", 1, "2026-11-02T10:00:00Z");
+        int d = legeBewegungAn(maus, anna, "Eingang", 3, "2026-11-03T10:00:00Z"); // gleicher Zeitpunkt wie b
+
+        List<Integer> ids = service.historie().stream()
+                .map(e -> e.bewegung().getLagerbewegungId()).toList();
+
+        assertEquals(List.of(d, b, c, a), ids);
+    }
+
+    @Test
+    void historieZeigtDieAktuellenNamenUndBleibtSonstUnveraendert() throws SQLException {
+        Buchungsergebnis eingang = service.einlagern(maus, anna, 5);
+        sql("UPDATE \"Artikel\" SET \"Bezeichnung\" = 'Funkmaus' WHERE \"ArtikelID\" = " + maus);
+        sql("UPDATE \"Mitarbeiter\" SET \"Name\" = 'Anna Schulz' WHERE \"MitarbeiterID\" = " + anna);
+
+        Historieneintrag eintrag = service.historie().getFirst();
+
+        assertEquals("Funkmaus", eintrag.artikelBezeichnung(), "aktuelle Artikelbezeichnung");
+        assertEquals("Anna Schulz", eintrag.mitarbeiterName(), "aktueller Mitarbeitername");
+        assertEquals(eingang.bewegung().getLagerbewegungId(), eintrag.bewegung().getLagerbewegungId());
+        assertEquals(5, eintrag.menge(), "die Bewegung selbst bleibt unverändert");
+        assertEquals(Bewegungsart.EINGANG, eintrag.bewegungsart());
+    }
+
+    @Test
+    void historieOeffnetGenauEineVerbindungUndSchliesstSie() throws SQLException {
+        service.einlagern(maus, anna, 1);
+        connectionFactory.geoeffnet.clear();
+
+        service.historie();
+        service.historie();
+
+        assertEquals(2, connectionFactory.geoeffnet.size());
+        for (Connection con : connectionFactory.geoeffnet) {
+            assertTrue(con.isClosed());
+        }
+    }
+
+    @Test
+    void historieBeiTechnischemFehler() {
+        ConnectionConfig falschesPasswort =
+                new ConnectionConfig(config.url(), config.user(), config.password() + "-falsch");
+        MaterialService ohneZugang = new MaterialService(new JdbcArtikelDAO(), new JdbcMitarbeiterDAO(),
+                new JdbcLagerbewegungDAO(), new ConnectionFactory(falschesPasswort));
+
+        assertThrows(DatenzugriffsException.class, ohneZugang::historie);
+    }
+
+    private static void assertEintrag(Historieneintrag e, int artikelId, String bezeichnung, int mitarbeiterId,
+                                      String name, Bewegungsart art, int menge, String rolle) {
+        assertEquals(artikelId, e.artikelId());
+        assertEquals(bezeichnung, e.artikelBezeichnung());
+        assertEquals(mitarbeiterId, e.mitarbeiterId());
+        assertEquals(name, e.mitarbeiterName());
+        assertEquals(art, e.bewegungsart());
+        assertEquals(menge, e.menge());
+        assertEquals(rolle, e.mitarbeiterRolle());
+    }
+
     // ---------- Hilfsmethoden ----------
 
     private static FachlicheException assertFachlich(FachlicherFehler erwartet, Executable aufruf) {
@@ -550,6 +653,25 @@ class MaterialServiceIT {
             try (ResultSet rs = ps.executeQuery()) {
                 rs.next();
                 return rs.getLong(1);
+            }
+        }
+    }
+
+    /** Legt eine Bewegung mit festem Zeitpunkt direkt per SQL an und liefert ihre ID. */
+    private static int legeBewegungAn(int artikelId, int mitarbeiterId, String art, int menge, String zeitpunkt)
+            throws SQLException {
+        try (Connection con = new ConnectionFactory(config).openConnection();
+             PreparedStatement ps = con.prepareStatement(
+                     "INSERT INTO \"Lagerbewegung\" (\"ArtikelID\", \"MitarbeiterID\", \"Menge\", \"Bewegungsart\", "
+                             + "\"Bewegungszeitpunkt\") VALUES (?, ?, ?, ?, ?::timestamptz) RETURNING \"BewegungsID\"")) {
+            ps.setInt(1, artikelId);
+            ps.setInt(2, mitarbeiterId);
+            ps.setInt(3, menge);
+            ps.setString(4, art);
+            ps.setString(5, zeitpunkt);
+            try (ResultSet rs = ps.executeQuery()) {
+                rs.next();
+                return rs.getInt(1);
             }
         }
     }

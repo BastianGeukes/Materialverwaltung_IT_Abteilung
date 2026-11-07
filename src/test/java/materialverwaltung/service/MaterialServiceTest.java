@@ -69,6 +69,7 @@ class MaterialServiceTest {
         assertThrows(DatenzugriffsException.class, () -> service.einlagern(1, 1, 1));
         assertThrows(DatenzugriffsException.class, () -> service.einlagern(1, 1, Integer.MAX_VALUE));
         assertThrows(DatenzugriffsException.class, () -> service.ausgeben(1, 1, 1));
+        assertThrows(DatenzugriffsException.class, service::historie);
     }
 
     @Test
