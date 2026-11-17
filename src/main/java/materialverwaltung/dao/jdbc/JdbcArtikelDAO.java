@@ -3,7 +3,6 @@ package materialverwaltung.dao.jdbc;
 import materialverwaltung.dao.ArtikelDAO;
 import materialverwaltung.exception.DatenzugriffsException;
 import materialverwaltung.model.ArtikelBO;
-import materialverwaltung.model.MitarbeiterBO;
 
 import java.sql.*;
 import java.util.ArrayList;
@@ -60,14 +59,16 @@ public class JdbcArtikelDAO implements ArtikelDAO {
                 WHERE "ArtikelID" = ?
                 """;
 
-        try(PreparedStatement mitarbeiterFinden = connection.prepareStatement(findeString)) {
-            mitarbeiterFinden.setInt(1, artikelId);
-            try (ResultSet rs = mitarbeiterFinden.executeQuery()) {
+        try(PreparedStatement artikelFinden = connection.prepareStatement(findeString)) {
+            artikelFinden.setInt(1, artikelId);
+            try (ResultSet rs = artikelFinden.executeQuery()) {
                 if (rs.next()) {
                     String bezeichnung = rs.getString("Bezeichnung");
                     int bestand = rs.getInt("Bestand");
 
-                    return Optional.of(new ArtikelBO(artikelId, bezeichnung, bestand));
+                    return Optional.of(
+                            new ArtikelBO(artikelId, bezeichnung, bestand)
+                    );
                 } else {
                     return Optional.empty();
                 }
@@ -93,15 +94,17 @@ public class JdbcArtikelDAO implements ArtikelDAO {
                 ORDER BY "ArtikelID" ASC
                 """;
 
-        try(PreparedStatement alleMitarbeiterFinden = connection.prepareStatement(findeString)) {
-            try(ResultSet rs = alleMitarbeiterFinden.executeQuery()) {
+        try(PreparedStatement alleArtikelFinden = connection.prepareStatement(findeString)) {
+            try(ResultSet rs = alleArtikelFinden.executeQuery()) {
                 List<ArtikelBO> artikelList = new ArrayList<>();
                 while (rs.next()) {
                     int artikelId = rs.getInt("ArtikelID");
                     String bezeichnung = rs.getString("Bezeichnung");
                     int bestand = rs.getInt("Bestand");
 
-                    artikelList.add(new ArtikelBO(artikelId, bezeichnung, bestand));
+                    artikelList.add(
+                            new ArtikelBO(artikelId, bezeichnung, bestand)
+                    );
                 }
                 return artikelList;
             }
@@ -131,7 +134,9 @@ public class JdbcArtikelDAO implements ArtikelDAO {
                 .replace("_", "!_");
 
         try (PreparedStatement sucheMitTeilbegriff = connection.prepareStatement(suchString)) {
-            sucheMitTeilbegriff.setString(1, "%" + suchmuster + "%");
+            sucheMitTeilbegriff.setString(
+                    1, "%" + suchmuster + "%"
+            );
 
             try (ResultSet rs = sucheMitTeilbegriff.executeQuery()) {
                 List<ArtikelBO> artikelList = new ArrayList<>();
@@ -139,7 +144,9 @@ public class JdbcArtikelDAO implements ArtikelDAO {
                     int artikelId = rs.getInt("ArtikelID");
                     String bezeichnung = rs.getString("Bezeichnung");
                     int bestand = rs.getInt("Bestand");
-                    artikelList.add(new ArtikelBO(artikelId, bezeichnung, bestand));
+                    artikelList.add(
+                            new ArtikelBO(artikelId, bezeichnung, bestand)
+                    );
                 }
                 return artikelList;
             }
@@ -168,7 +175,7 @@ public class JdbcArtikelDAO implements ArtikelDAO {
             artikelUmbenennen.setInt(2, artikelId);
             return artikelUmbenennen.executeUpdate() == 1;
         } catch (SQLException e){
-            throw new DatenzugriffsException("Umbenennen des Mitarbeiters Fehlgeschlagen", e);
+            throw new DatenzugriffsException("Umbenennen des Artikel Fehlgeschlagen", e);
         }
     }
 
@@ -208,14 +215,16 @@ public class JdbcArtikelDAO implements ArtikelDAO {
         FOR UPDATE
         """;
 
-        try(PreparedStatement mitarbeiterFinden = connection.prepareStatement(findeString)) {
-            mitarbeiterFinden.setInt(1, artikelId);
-            try (ResultSet rs = mitarbeiterFinden.executeQuery()) {
+        try(PreparedStatement artikelFinden = connection.prepareStatement(findeString)) {
+            artikelFinden.setInt(1, artikelId);
+            try (ResultSet rs = artikelFinden.executeQuery()) {
                 if (rs.next()) {
                     String bezeichnung = rs.getString("Bezeichnung");
                     int bestand = rs.getInt("Bestand");
 
-                    return Optional.of(new ArtikelBO(artikelId, bezeichnung, bestand));
+                    return Optional.of(
+                            new ArtikelBO(artikelId, bezeichnung, bestand)
+                    );
                 } else {
                     return Optional.empty();
                 }
