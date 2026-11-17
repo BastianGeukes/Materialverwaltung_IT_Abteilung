@@ -27,7 +27,10 @@ public class JdbcMitarbeiterDAO implements MitarbeiterDAO {
         try (PreparedStatement mitarbeiterAnlegen = connection.prepareStatement(anlegenString, Statement.RETURN_GENERATED_KEYS)) {
             mitarbeiterAnlegen.setString(1, name);
             mitarbeiterAnlegen.setString(
-                    2, abteilung == null ? null : abteilung.name());
+                    2, abteilung == null
+                            ? null
+                            : abteilung.name()
+            );
             mitarbeiterAnlegen.executeUpdate();
             try (ResultSet resultSet = mitarbeiterAnlegen.getGeneratedKeys()) {
                 if (resultSet.next()) {
@@ -64,7 +67,9 @@ public class JdbcMitarbeiterDAO implements MitarbeiterDAO {
                     Abteilung abteilung = abteilungText == null
                             ? null
                             : Abteilung.valueOf(abteilungText);
-                    return Optional.of(new MitarbeiterBO(mitarbeiterId, name, abteilung));
+                    return Optional.of(
+                            new MitarbeiterBO(mitarbeiterId, name, abteilung)
+                    );
                 } else {
                     return Optional.empty();
                 }
@@ -87,19 +92,7 @@ public class JdbcMitarbeiterDAO implements MitarbeiterDAO {
         String suchString =
                 "SELECT * FROM \"Mitarbeiter\" ORDER BY \"MitarbeiterID\" ASC";
         try (PreparedStatement allMitarbeiterSuchen = connection.prepareStatement(suchString)) {
-            try (ResultSet resultSet = allMitarbeiterSuchen.executeQuery()) {
-                List<MitarbeiterBO> mitarbeiter = new ArrayList<>();
-                while (resultSet.next()) {
-                    int mitarbeiterID = resultSet.getInt("MitarbeiterID");
-                    String name = resultSet.getString("Name");
-                    String abteilungText = resultSet.getString("Abteilung");
-                    Abteilung abteilung = abteilungText == null
-                            ? null
-                            : Abteilung.valueOf(abteilungText);
-                    mitarbeiter.add(new MitarbeiterBO(mitarbeiterID, name, abteilung));
-                }
-                return mitarbeiter;
-            }
+            return getMitarbeiterBOS(allMitarbeiterSuchen);
         } catch (SQLException e) {
             throw new DatenzugriffsException(
                     "Mitarbeiter konnten nicht geladen werden", e);
@@ -126,19 +119,7 @@ public class JdbcMitarbeiterDAO implements MitarbeiterDAO {
                 .replace("_", "!_");
         try (PreparedStatement sucheMitTeilbegriff = connection.prepareStatement(sucheString)) {
             sucheMitTeilbegriff.setString(1, "%" + suchmuster + "%");
-            try (ResultSet resultSet = sucheMitTeilbegriff.executeQuery()) {
-                List<MitarbeiterBO> mitarbeiter = new ArrayList<>();
-                while (resultSet.next()) {
-                    int mitarbeiterID = resultSet.getInt("MitarbeiterID");
-                    String name = resultSet.getString("Name");
-                    String abteilungText = resultSet.getString("Abteilung");
-                    Abteilung abteilung = abteilungText == null
-                            ? null
-                            : Abteilung.valueOf(abteilungText);
-                    mitarbeiter.add(new MitarbeiterBO(mitarbeiterID, name, abteilung));
-                }
-                return mitarbeiter;
-            }
+            return getMitarbeiterBOS(sucheMitTeilbegriff);
         } catch (SQLException e) {
             throw new DatenzugriffsException(
                     "Suche nach mitarbeiter Namen mit Teilbegriff fehlgeschlagen", e);
@@ -185,7 +166,11 @@ public class JdbcMitarbeiterDAO implements MitarbeiterDAO {
                 "UPDATE \"Mitarbeiter\" SET \"Abteilung\" = ? WHERE \"MitarbeiterID\" = ?";
 
         try (PreparedStatement bearbeiteMitarbeiter = connection.prepareStatement(bearbeitenString)) {
-            bearbeiteMitarbeiter.setString(1, abteilung == null ? null : abteilung.name());
+            bearbeiteMitarbeiter.setString(
+                    1, abteilung == null
+                            ? null
+                            : abteilung.name()
+            );
             bearbeiteMitarbeiter.setInt(2, mitarbeiterId);
             return bearbeiteMitarbeiter.executeUpdate() == 1;
         } catch (SQLException e) {
@@ -233,6 +218,25 @@ public class JdbcMitarbeiterDAO implements MitarbeiterDAO {
             return mitarbeiterLoeschen.executeUpdate() == 1;
         } catch (SQLException e) {
             throw new DatenzugriffsException("Die Datenbank konnte die Löschung nicht durchführen", e);
+        }
+    }
+
+    //Private-Hilfsmethoden
+    private List<MitarbeiterBO> getMitarbeiterBOS(PreparedStatement allMitarbeiterSuchen) throws SQLException {
+        try (ResultSet resultSet = allMitarbeiterSuchen.executeQuery()) {
+            List<MitarbeiterBO> mitarbeiter = new ArrayList<>();
+            while (resultSet.next()) {
+                int mitarbeiterID = resultSet.getInt("MitarbeiterID");
+                String name = resultSet.getString("Name");
+                String abteilungText = resultSet.getString("Abteilung");
+                Abteilung abteilung = abteilungText == null
+                        ? null
+                        : Abteilung.valueOf(abteilungText);
+                mitarbeiter.add(
+                        new MitarbeiterBO(mitarbeiterID, name, abteilung)
+                );
+            }
+            return mitarbeiter;
         }
     }
 }
