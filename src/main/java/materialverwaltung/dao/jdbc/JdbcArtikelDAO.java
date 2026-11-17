@@ -3,7 +3,6 @@ package materialverwaltung.dao.jdbc;
 import materialverwaltung.dao.ArtikelDAO;
 import materialverwaltung.exception.DatenzugriffsException;
 import materialverwaltung.model.ArtikelBO;
-import materialverwaltung.model.MitarbeiterBO;
 
 import java.sql.*;
 import java.util.ArrayList;
@@ -60,23 +59,7 @@ public class JdbcArtikelDAO implements ArtikelDAO {
                 WHERE "ArtikelID" = ?
                 """;
 
-        try(PreparedStatement mitarbeiterFinden = connection.prepareStatement(findeString)) {
-            mitarbeiterFinden.setInt(1, artikelId);
-            try (ResultSet rs = mitarbeiterFinden.executeQuery()) {
-                if (rs.next()) {
-                    String bezeichnung = rs.getString("Bezeichnung");
-                    int bestand = rs.getInt("Bestand");
-
-                    return Optional.of(new ArtikelBO(artikelId, bezeichnung, bestand));
-                } else {
-                    return Optional.empty();
-                }
-            }
-        } catch (SQLException e){
-            throw new DatenzugriffsException(
-                    "Artikel mit ID " + artikelId
-                    + "konte nicht geladen werden", e);
-        }
+        return getOptionalArtikelBO(connection, artikelId, findeString);
     }
 
     /**
@@ -93,18 +76,8 @@ public class JdbcArtikelDAO implements ArtikelDAO {
                 ORDER BY "ArtikelID" ASC
                 """;
 
-        try(PreparedStatement alleMitarbeiterFinden = connection.prepareStatement(findeString)) {
-            try(ResultSet rs = alleMitarbeiterFinden.executeQuery()) {
-                List<ArtikelBO> artikelList = new ArrayList<>();
-                while (rs.next()) {
-                    int artikelId = rs.getInt("ArtikelID");
-                    String bezeichnung = rs.getString("Bezeichnung");
-                    int bestand = rs.getInt("Bestand");
-
-                    artikelList.add(new ArtikelBO(artikelId, bezeichnung, bestand));
-                }
-                return artikelList;
-            }
+        try(PreparedStatement alleArtikelFinden = connection.prepareStatement(findeString)) {
+            return getArtikelBOS(alleArtikelFinden);
         } catch (SQLException e){
             throw new DatenzugriffsException("Artikel konnten nicht geladen werden", e);
         }
@@ -131,18 +104,11 @@ public class JdbcArtikelDAO implements ArtikelDAO {
                 .replace("_", "!_");
 
         try (PreparedStatement sucheMitTeilbegriff = connection.prepareStatement(suchString)) {
-            sucheMitTeilbegriff.setString(1, "%" + suchmuster + "%");
+            sucheMitTeilbegriff.setString(
+                    1, "%" + suchmuster + "%"
+            );
 
-            try (ResultSet rs = sucheMitTeilbegriff.executeQuery()) {
-                List<ArtikelBO> artikelList = new ArrayList<>();
-                while (rs.next()) {
-                    int artikelId = rs.getInt("ArtikelID");
-                    String bezeichnung = rs.getString("Bezeichnung");
-                    int bestand = rs.getInt("Bestand");
-                    artikelList.add(new ArtikelBO(artikelId, bezeichnung, bestand));
-                }
-                return artikelList;
-            }
+            return getArtikelBOS(sucheMitTeilbegriff);
         } catch (SQLException e){
             throw new DatenzugriffsException("Suche nach Artikel Namen mit Teilbegriff fehlgeschlagen", e);
         }
@@ -168,7 +134,7 @@ public class JdbcArtikelDAO implements ArtikelDAO {
             artikelUmbenennen.setInt(2, artikelId);
             return artikelUmbenennen.executeUpdate() == 1;
         } catch (SQLException e){
-            throw new DatenzugriffsException("Umbenennen des Mitarbeiters Fehlgeschlagen", e);
+            throw new DatenzugriffsException("Umbenennen des Artikel Fehlgeschlagen", e);
         }
     }
 
@@ -208,23 +174,7 @@ public class JdbcArtikelDAO implements ArtikelDAO {
         FOR UPDATE
         """;
 
-        try(PreparedStatement mitarbeiterFinden = connection.prepareStatement(findeString)) {
-            mitarbeiterFinden.setInt(1, artikelId);
-            try (ResultSet rs = mitarbeiterFinden.executeQuery()) {
-                if (rs.next()) {
-                    String bezeichnung = rs.getString("Bezeichnung");
-                    int bestand = rs.getInt("Bestand");
-
-                    return Optional.of(new ArtikelBO(artikelId, bezeichnung, bestand));
-                } else {
-                    return Optional.empty();
-                }
-            }
-        } catch (SQLException e){
-            throw new DatenzugriffsException(
-                    "Artikel mit ID " + artikelId
-                            + "konte nicht geladen werden", e);
-        }
+        return getOptionalArtikelBO(connection, artikelId, findeString);
     }
 
     /**
@@ -249,6 +199,44 @@ public class JdbcArtikelDAO implements ArtikelDAO {
             return bestandAendern.executeUpdate() == 1;
         } catch (SQLException e){
             throw new DatenzugriffsException("Bestandsänderung Fehlgeschlagen" , e);
+        }
+    }
+
+    //Private-Hilfsmethoden
+    private List<ArtikelBO> getArtikelBOS(PreparedStatement sucheMitTeilbegriff) throws SQLException {
+        try (ResultSet rs = sucheMitTeilbegriff.executeQuery()) {
+            List<ArtikelBO> artikelList = new ArrayList<>();
+            while (rs.next()) {
+                int artikelId = rs.getInt("ArtikelID");
+                String bezeichnung = rs.getString("Bezeichnung");
+                int bestand = rs.getInt("Bestand");
+                artikelList.add(
+                        new ArtikelBO(artikelId, bezeichnung, bestand)
+                );
+            }
+            return artikelList;
+        }
+    }
+
+    private Optional<ArtikelBO> getOptionalArtikelBO(Connection connection, int artikelId, String findeString) {
+        try(PreparedStatement artikelFinden = connection.prepareStatement(findeString)) {
+            artikelFinden.setInt(1, artikelId);
+            try (ResultSet rs = artikelFinden.executeQuery()) {
+                if (rs.next()) {
+                    String bezeichnung = rs.getString("Bezeichnung");
+                    int bestand = rs.getInt("Bestand");
+
+                    return Optional.of(
+                            new ArtikelBO(artikelId, bezeichnung, bestand)
+                    );
+                } else {
+                    return Optional.empty();
+                }
+            }
+        } catch (SQLException e){
+            throw new DatenzugriffsException(
+                    "Artikel mit ID " + artikelId
+                            + "konte nicht geladen werden", e);
         }
     }
 }

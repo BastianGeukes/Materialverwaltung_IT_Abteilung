@@ -15,7 +15,7 @@ import java.util.List;
 
 public class JdbcLagerbewegungDAO implements LagerbewegungDAO {
     /**
-     * Legt eine Lagerbewgung an zur Logistischen Nachverfolgung von Bestandsänderungen
+     * Legt eine Lagerbewegung an zur Logistischen Nachverfolgung von Bestandsänderungen
      *
      * @param connection    DB Verbindung
      * @param artikelId     Artikel ID
