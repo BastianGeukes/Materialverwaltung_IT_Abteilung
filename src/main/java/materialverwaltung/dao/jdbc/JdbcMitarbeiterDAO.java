@@ -113,12 +113,8 @@ public class JdbcMitarbeiterDAO implements MitarbeiterDAO {
                 "SELECT * FROM \"Mitarbeiter\" "
                         + "WHERE LOWER(\"Name\") LIKE LOWER(?) ESCAPE '!' "
                         + "ORDER BY \"MitarbeiterID\" ASC";
-        String suchmuster = suchbegriff
-                .replace("!", "!!")
-                .replace("%", "!%")
-                .replace("_", "!_");
         try (PreparedStatement sucheMitTeilbegriff = connection.prepareStatement(sucheString)) {
-            sucheMitTeilbegriff.setString(1, "%" + suchmuster + "%");
+            sucheMitTeilbegriff.setString(1, SqlSuchmuster.teilbegriff(suchbegriff));
             return getMitarbeiterBOS(sucheMitTeilbegriff);
         } catch (SQLException e) {
             throw new DatenzugriffsException(

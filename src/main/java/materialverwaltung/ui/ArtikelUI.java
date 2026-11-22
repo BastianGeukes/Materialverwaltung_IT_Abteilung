@@ -66,8 +66,7 @@ public class ArtikelUI {
     }
 
     void anzeigen() {
-        int id = eingabe.lesePositiveGanzzahl("Artikel-ID");
-        ArtikelBO artikel = service.holeNachId(id);
+        ArtikelBO artikel = waehleArtikel();
         ausgabe.println(beschreibe(artikel));
     }
 
@@ -83,8 +82,7 @@ public class ArtikelUI {
     }
 
     void umbenennen() {
-        int id = eingabe.lesePositiveGanzzahl("Artikel-ID");
-        ArtikelBO bisher = service.holeNachId(id);
+        ArtikelBO bisher = waehleArtikel();
         ausgabe.println("Bisher: " + beschreibe(bisher));
         ausgabe.println("Hinweis: Nur die Bezeichnung kann geändert werden. "
                 + "Der Bestand ändert sich nur durch Einlagerung oder Ausgabe.");
@@ -96,19 +94,18 @@ public class ArtikelUI {
             return;
         }
 
-        ArtikelBO umbenannt = service.umbenennen(id, neueBezeichnung);
+        ArtikelBO umbenannt = service.umbenennen(bisher.getArtikelId(), neueBezeichnung);
         ausgabe.println("Artikel umbenannt: " + beschreibe(umbenannt));
     }
 
     void loeschen() {
-        int id = eingabe.lesePositiveGanzzahl("Artikel-ID");
-        ArtikelBO artikel = service.holeNachId(id);
+        ArtikelBO artikel = waehleArtikel();
 
         if (!eingabe.leseJaNein("Artikel " + beschreibe(artikel) + " wirklich löschen?")) {
             ausgabe.println("Löschen abgebrochen. Der Artikel wurde nicht gelöscht.");
             return;
         }
-        service.loeschen(id);
+        service.loeschen(artikel.getArtikelId());
         ausgabe.println("Artikel " + beschreibe(artikel) + " wurde gelöscht.");
     }
 
@@ -123,5 +120,12 @@ public class ArtikelUI {
     /** z. B. „[ID 3] Maus (Bestand: 5)“. */
     static String beschreibe(ArtikelBO a) {
         return "[ID " + a.getArtikelId() + "] " + a.getBezeichnung() + " (Bestand: " + a.getBestand() + ")";
+    }
+
+    //Private-Hilfsmethoden
+
+    private ArtikelBO waehleArtikel() {
+        int id = eingabe.lesePositiveGanzzahl("Artikel-ID");
+        return service.holeNachId(id);
     }
 }
