@@ -98,14 +98,10 @@ public class JdbcArtikelDAO implements ArtikelDAO {
                 "SELECT * FROM \"Artikel\" "
                     + "WHERE LOWER(\"Bezeichnung\") LIKE LOWER(?) ESCAPE '!' "
                     +  "ORDER BY \"ArtikelID\" ASC";
-        String suchmuster = suchbegriff
-                .replace("!", "!!")
-                .replace("%", "!%")
-                .replace("_", "!_");
 
         try (PreparedStatement sucheMitTeilbegriff = connection.prepareStatement(suchString)) {
             sucheMitTeilbegriff.setString(
-                    1, "%" + suchmuster + "%"
+                    1, SqlSuchmuster.teilbegriff(suchbegriff)
             );
 
             return getArtikelBOS(sucheMitTeilbegriff);
@@ -142,7 +138,7 @@ public class JdbcArtikelDAO implements ArtikelDAO {
      * Löscht einen Artikel mithilfe der ID
      *
      * @param connection DB Verbindung
-     * @param artikelId
+     * @param artikelId ID
      * @return boolean
      */
     @Override
